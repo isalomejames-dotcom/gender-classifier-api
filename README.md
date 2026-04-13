@@ -2,12 +2,14 @@
 
 This is a simple backend API that takes a name and predicts gender by calling the Genderize.io API.
 
-## Endpoint
+## Live URL
+**https://gender-classifier-api-beta.vercel.app**
 
+## Endpoint
 **GET** `/api/classify?name={name}`
 
 ### Example Request (with Sally)
-https://your-app-name.vercel.app/api/classify?name=Sally
+https://gender-classifier-api-beta.vercel.app/api/classify?name=Sally
 text### Success Response Example
 ```json
 {
@@ -54,4 +56,3 @@ Express.js
 Axios
 
 This project was built for the Stage 0 (Backend) API Integration & Data Processing Assessment.
-text
