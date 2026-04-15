@@ -1,21 +1,34 @@
 const axios = require('axios');
 
 module.exports = async (req, res) => {
-    // Required CORS header
     res.setHeader('Access-Control-Allow-Origin', '*');
 
     try {
         const nameParam = req.query.name;
 
-        // Input validation
-        if (!nameParam || typeof nameParam !== 'string' || nameParam.trim() === '') {
+        // === FIX 1: Strict Query Parameter & Error Handling (400/422) ===
+        if (nameParam === undefined || nameParam === null) {
             return res.status(400).json({
                 status: "error",
-                message: "Name parameter is required and must be a non-empty string"
+                message: "Name parameter is required"
+            });
+        }
+
+        if (typeof nameParam !== 'string') {
+            return res.status(422).json({
+                status: "error",
+                message: "Name must be a string"
             });
         }
 
         const name = nameParam.trim();
+
+        if (name === '') {
+            return res.status(400).json({
+                status: "error",
+                message: "Name parameter cannot be empty"
+            });
+        }
 
         // Call Genderize API
         const apiUrl = `https://api.genderize.io?name=${encodeURIComponent(name)}`;
@@ -23,7 +36,7 @@ module.exports = async (req, res) => {
 
         const data = response.data;
 
-        // Edge case from Genderize
+        // Genderize edge case
         if (data.gender === null || data.count === 0) {
             return res.status(200).json({
                 status: "error",
@@ -31,17 +44,17 @@ module.exports = async (req, res) => {
             });
         }
 
-        // Process the data as per requirements
+        // === FIX 2 & 3: Proper Processing + Confidence Logic ===
         const processedData = {
             name: data.name,
             gender: data.gender,
             probability: data.probability,
-            sample_size: data.count,                    // renamed
-            is_confident: data.probability >= 0.7 && data.count >= 100,
-            processed_at: new Date().toISOString()
+            sample_size: data.count,                    // renamed correctly
+            is_confident: data.probability >= 0.7 && data.count >= 100,   // exact rule
+            processed_at: new Date().toISOString()      // proper UTC ISO 8601
         };
 
-        // Success response
+        // === FIX 4: Exact Success Response Structure ===
         return res.status(200).json({
             status: "success",
             data: processedData

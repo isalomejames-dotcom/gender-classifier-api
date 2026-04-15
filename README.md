@@ -4,7 +4,6 @@ This is a simple backend API that takes a name and predicts gender by calling th
 
 ## Live URL
 **https://gender-classifier-api-beta.vercel.app**
-
 ## Endpoint
 **GET** `/api/classify?name={name}`
 
