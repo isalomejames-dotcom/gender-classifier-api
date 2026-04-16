@@ -1,54 +1,83 @@
+// api/classify.js
+
 const axios = require('axios');
 
 module.exports = async (req, res) => {
-  // CORS - this is required by the grader
+  // CORS header
   res.setHeader('Access-Control-Allow-Origin', '*');
 
+  const { name } = req.query;
+
+  // Error Handling & Query Parameter Handling
+  // Missing name param
+  if (name === undefined || name === null) {
+    return res.status(400).json({
+      status: 'error',
+      message: 'Missing required query parameter: name'
+    });
+  }
+
+  // Name is not a string (e.g. array)
+  if (typeof name !== 'string') {
+    return res.status(422).json({
+      status: 'error',
+      message: 'Query parameter "name" must be a string'
+    });
+  }
+
+  // Empty name
+  if (name.trim() === '') {
+    return res.status(400).json({
+      status: 'error',
+      message: 'Query parameter "name" must not be empty'
+    });
+  }
+
   try {
-    const name = req.query.name;
+    // External API Integration
+    const genderizeResponse = await axios.get('https://api.genderize.io', {
+      params: { name: name.trim() }
+    });
 
-    // Strict validation for 400/422
-    if (!name || typeof name !== 'string' || name.trim() === '') {
-      return res.status(400).json({
-        status: "error",
-        message: "Name parameter is required and must be a non-empty string"
-      });
-    }
+    const data = genderizeResponse.data;
 
-    const cleanName = name.trim();
+    // Data Extraction Accuracy
+    const resultName = data.name || name.trim();
+    const gender = data.gender || null;
+    const probability = typeof data.probability === 'number' ? data.probability : 0;
+    const sample_size = typeof data.count === 'number' ? data.count : 0;
 
-    // Call Genderize
-    const response = await axios.get(`https://api.genderize.io?name=${encodeURIComponent(cleanName)}`);
-    const data = response.data;
-
-    // Edge case
-    if (data.gender === null || data.count === 0) {
+    // Handle no prediction available
+    if (!gender) {
       return res.status(200).json({
-        status: "error",
-        message: "No prediction available for the provided name"
+        status: 'error',
+        message: 'No prediction available for the provided name'
       });
     }
 
-    // Process exactly as required
-    const result = {
-      name: data.name,
-      gender: data.gender,
-      probability: data.probability,
-      sample_size: data.count,
-      is_confident: data.probability >= 0.7 && data.count >= 100,
-      processed_at: new Date().toISOString()
-    };
+    // Confidence Logic: probability >= 0.7 AND sample_size >= 100
+    const is_confident = probability >= 0.7 && sample_size >= 100;
 
-    // Exact success format the grader wants
+    // processed_at in valid ISO 8601 UTC format
+    const processed_at = new Date().toISOString();
+
+    // Response Format & Structure
     return res.status(200).json({
-      status: "success",
-      data: result
+      status: 'success',
+      data: {
+        name: resultName,
+        gender: gender,
+        probability: probability,
+        sample_size: sample_size,
+        is_confident: is_confident,
+        processed_at: processed_at
+      }
     });
 
   } catch (error) {
-    return res.status(502).json({
-      status: "error",
-      message: "Failed to fetch data from Genderize API"
+    return res.status(500).json({
+      status: 'error',
+      message: 'Failed to fetch gender data from external API'
     });
   }
 };
