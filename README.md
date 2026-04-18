@@ -1,57 +1,121 @@
-# Gender Classification API
+# Gender Classifier API
 
-This is a simple backend API that takes a name and predicts gender by calling the Genderize.io API.
+Backend API that classifies a name's likely gender by integrating with the [Genderize.io](https://genderize.io) API and returning a processed response.
 
-## Live URL
-**https://gender-classifier-api-beta.vercel.app**
+Built for **HNG Stage 0 — Backend API Integration & Data Processing Assessment**.
+
 ## Endpoint
-**GET** `/api/classify?name={name}`
 
-### Example Request (with Sally)
-https://gender-classifier-api-beta.vercel.app/api/classify?name=Sally
-text### Success Response Example
+```
+GET /api/classify?name={name}
+```
+
+### Query Parameters
+
+| Name | Type   | Required | Description                  |
+| ---- | ------ | -------- | ---------------------------- |
+| name | string | yes      | Name to classify (non-empty) |
+
+### Success Response — `200 OK`
+
 ```json
 {
   "status": "success",
   "data": {
-    "name": "Sally",
-    "gender": "female",
-    "probability": 0.92,
-    "sample_size": 12345,
+    "name": "john",
+    "gender": "male",
+    "probability": 0.99,
+    "sample_size": 1234,
     "is_confident": true,
-    "processed_at": "2026-04-12T15:00:00Z"
+    "processed_at": "2026-04-01T12:00:00Z"
   }
 }
-Error Responses
+```
 
-400 Bad Request: When name is missing or empty
-422 Unprocessable Entity: When name is not a string
-When no prediction is available:JSON{
-  "status": "error",
-  "message": "No prediction available for the provided name"
-}
+### Error Responses
 
-Features
+All errors follow the shape:
 
-Calls the Genderize.io external API
-Renames count to sample_size
-Calculates is_confident: true only when probability ≥ 0.7 AND sample_size ≥ 100
-Adds processed_at with current UTC time on every request
-Has CORS header (Access-Control-Allow-Origin: *)
-Proper validation and error handling for all cases
+```json
+{ "status": "error", "message": "<error message>" }
+```
 
-How to Run Locally
+| Status | Condition                                           |
+| ------ | --------------------------------------------------- |
+| 400    | `name` is missing or empty                          |
+| 422    | `name` is not a string (e.g. `?name[]=a&name[]=b`)  |
+| 404    | Genderize returned `gender: null` or `count: 0`     |
+| 502    | Upstream call to Genderize failed                   |
+| 500    | Unhandled server error                              |
 
-Install dependencies:Bashnpm install
-Run the server:Bashnode index.js
-Test it:
-Open your browser and go to:
-http://localhost:3000/api/classify?name=Sally
+## Processing Rules
 
-Tech Stack
+- Extract `gender`, `probability`, and `count` from the Genderize response.
+- Rename `count` to `sample_size`.
+- `is_confident = probability >= 0.7 && sample_size >= 100`.
+- `processed_at` is generated per-request as a UTC ISO-8601 timestamp.
+- `Access-Control-Allow-Origin: *` header set on every response.
 
-Node.js
-Express.js
-Axios
+## Project Structure
 
-This project was built for the Stage 0 (Backend) API Integration & Data Processing Assessment.
+```
+.
+├── index.js                    # Express entry / Vercel handler
+├── vercel.json                 # Vercel routing config
+├── package.json
+└── src/
+    ├── controllers/
+    │   └── classifyController.js
+    ├── routes/
+    │   └── classifyRoutes.js
+    ├── services/
+    │   └── genderizeService.js
+    └── utils/
+        └── validators.js
+```
+
+## Run Locally
+
+```bash
+npm install
+npm start            # production mode
+npm run dev          # with nodemon for hot reload
+```
+
+Server defaults to `http://localhost:3000`. Override with the `PORT` env var.
+
+## Example Requests
+
+### Success
+
+```bash
+curl -i "http://localhost:3000/api/classify?name=sally"
+```
+
+### 400 — missing name
+
+```bash
+curl -i "http://localhost:3000/api/classify"
+```
+
+### 400 — empty name
+
+```bash
+curl -i "http://localhost:3000/api/classify?name="
+```
+
+### 422 — non-string name
+
+```bash
+curl -i "http://localhost:3000/api/classify?name[]=a&name[]=b"
+```
+
+### 404 — no prediction available
+
+```bash
+curl -i "http://localhost:3000/api/classify?name=zzzzqqqqnoone"
+```
+
+## Deployment
+
+The repo is configured for Vercel (`vercel.json`). Any Node-compatible host (Railway, Heroku, AWS, PXXL App, etc.) works — just run `npm start`.
